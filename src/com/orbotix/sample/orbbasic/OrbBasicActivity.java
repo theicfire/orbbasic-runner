@@ -1,34 +1,26 @@
 package com.orbotix.sample.orbbasic;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-
-import orbotix.robot.base.DeviceAsyncData;
-import orbotix.robot.base.DeviceMessenger;
-import orbotix.robot.base.OrbBasicAbortProgramCommand;
-import orbotix.robot.base.OrbBasicErrorASCIIAsyncData;
-import orbotix.robot.base.OrbBasicErrorBinaryAsyncData;
-import orbotix.robot.base.OrbBasicPrintMessageAsyncData;
-import orbotix.robot.base.OrbBasicProgram;
-import orbotix.robot.base.Robot;
-import orbotix.robot.base.RobotProvider;
-import orbotix.view.connection.SpheroConnectionView;
-import orbotix.view.connection.SpheroConnectionView.OnRobotConnectionEventListener;
-import android.app.ListActivity;
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
+import orbotix.robot.base.*;
+import orbotix.view.connection.SpheroConnectionView;
+import orbotix.view.connection.SpheroConnectionView.OnRobotConnectionEventListener;
 
-public class OrbBasicActivity extends ListActivity
-{
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
+public class OrbBasicActivity extends Activity {
 	/**
 	 * Sphero Connection View
 	 */
@@ -45,7 +37,6 @@ public class OrbBasicActivity extends ListActivity
 
 	/** UI */
 	private TextView mTxtStatus;
-	private OrbBasicProgramListAdapter mListAdapter;
 	
 	// Other
 	private String url;
@@ -57,49 +48,49 @@ public class OrbBasicActivity extends ListActivity
 	{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		
-		
-		mTxtStatus = (TextView)findViewById(R.id.txt_status);
-		// Auto scrolls to new data
-		mTxtStatus.setMovementMethod(new ScrollingMovementMethod());
-		loadRawResourcesIntoList();
-		
-		// get and display url
-		
-		// TODO remove..
-//		SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
-//        SharedPreferences.Editor editor = settings.edit();
-//    	editor.putString("editOrbUrl", null);
-//    	editor.commit();
-        	
-		// TODO why can I not use addMessageToStatus?
-    	url = getEditOrbUrl();
-		mTxtStatus.append("Edit Code At: http://orb-code.meteor.com/edit/" + url + "\n");
-//		addMessageToStatus("Edit Code At: 192.168.1.53/edit/");
 
-		mSpheroConnectionView = (SpheroConnectionView)findViewById(R.id.sphero_connection_view);
-		mSpheroConnectionView.setOnRobotConnectionEventListener(new OnRobotConnectionEventListener() {
-			@Override
-			public void onRobotConnectionFailed(Robot arg0) {}
-			@Override
-			public void onNonePaired() {}
-
-			@Override
-			public void onRobotConnected(Robot arg0) {
-				mRobot = arg0;
-				mSpheroConnectionView.setVisibility(View.GONE);
-
-				// Set the AsyncDataListener that will process print and error messages
-				DeviceMessenger.getInstance().addAsyncDataListener(mRobot, mDataListener);
-			}
-			@Override
-			public void onBluetoothNotEnabled() {
-				// See UISample Sample on how to show BT settings screen, for now just notify user
-				Toast.makeText(OrbBasicActivity.this, "Bluetooth Not Enabled", Toast.LENGTH_LONG).show();
-			}
-		});
+        setupStatusText();
+        showUrl();
+        startSpheroConnectionView();
 	}
-	
+
+    private void startSpheroConnectionView() {
+        mSpheroConnectionView = (SpheroConnectionView)findViewById(R.id.sphero_connection_view);
+        mSpheroConnectionView.setOnRobotConnectionEventListener(new OnRobotConnectionEventListener() {
+            @Override
+            public void onRobotConnectionFailed(Robot arg0) {}
+            @Override
+            public void onNonePaired() {}
+
+            @Override
+            public void onRobotConnected(Robot arg0) {
+                mRobot = arg0;
+                mSpheroConnectionView.setVisibility(View.GONE);
+
+                // Set the AsyncDataListener that will process print and error messages
+                DeviceMessenger.getInstance().addAsyncDataListener(mRobot, mDataListener);
+            }
+            @Override
+            public void onBluetoothNotEnabled() {
+                // See UISample Sample on how to show BT settings screen, for now just notify user
+                Toast.makeText(OrbBasicActivity.this, "Bluetooth Not Enabled", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void setupStatusText() {
+        mTxtStatus = (TextView)findViewById(R.id.txt_status);
+        // Auto scrolls to new data
+        mTxtStatus.setMovementMethod(new ScrollingMovementMethod());
+    }
+
+    private void showUrl() {
+        url = getEditOrbUrl();
+        final String urlString = "http://orb-code.meteor.com/edit/" + url;
+        ((TextView)findViewById(R.id.url_text)).setText(urlString);
+        mTxtStatus.append("Edit Code At: "+urlString+"\n");
+    }
+
     /**
      * Called when the user comes back to this app
      */
@@ -120,64 +111,6 @@ public class OrbBasicActivity extends ListActivity
         DeviceMessenger.getInstance().removeAsyncDataListener(mRobot, mDataListener);
     	// Disconnect Robot properly
     	RobotProvider.getDefaultProvider().disconnectControlledRobots();
-    }
-
-    /**
-     * Loads the contents of the raw res folder and puts it into the ListView adapter
-     */
-    private void loadRawResourcesIntoList() {
-        ArrayList<Integer> list = new ArrayList<Integer>();
-        ArrayList<String> listStr = new ArrayList<String>();
-        Field[] fields = R.raw.class.getFields();
-        for(Field f : fields)
-            try {
-                listStr.add(f.getName());
-                list.add(f.getInt(null));
-            } catch (IllegalArgumentException e) {
-            } catch (IllegalAccessException e) { }
-        mListAdapter = new OrbBasicProgramListAdapter();
-        mListAdapter.setOrbBasicProgramNames(listStr);
-        mListAdapter.setProgramResources(list);
-        getListView().setAdapter(mListAdapter);
-
-//        getListView().setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            @Override
-//            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-//                mOrbBasicProgramResource = mListAdapter.getOrbBasicPrograms().get(i).intValue();
-//                addMessageToStatus(mListAdapter.getOrbBasicProgramNames().get(i) + " now selected");
-//
-//                try {
-//                    // Retrieve byte array from file
-//                    Resources res = getResources();
-//
-//                    InputStream in_s = res.openRawResource(mOrbBasicProgramResource);
-//                    byte[] program = new byte[in_s.available()];
-//                    in_s.read(program);
-//
-//                    // Create the OrbBasic Program object
-//                    mOrbBasicProgram = new OrbBasicProgram(program);
-//                    mOrbBasicProgram.setRobot(mRobot);
-//
-//                    // Set the listener for the OrbBasic Program Events
-//                    mOrbBasicProgram.setOrbBasicProgramEventListener(new OrbBasicProgram.OrbBasicProgramEventListener() {
-//                        @Override
-//                        public void onEraseCompleted(boolean success) {
-//                            String successStr = (success) ? "Success":"Failure";
-//                            addMessageToStatus("Done Erasing: " + successStr);
-//                        }
-//
-//                        @Override
-//                        public void onLoadProgramComplete(boolean success) {
-//                            String successStr = (success) ? "Success":"Failure";
-//                            addMessageToStatus("Done Loading: " + successStr);
-//                        }
-//                    });
-//
-//                } catch (Exception e) {
-//                    addMessageToStatus("Error Decoding Resource");
-//                }
-//            }
-//        });
     }
 
     /**
@@ -202,38 +135,22 @@ public class OrbBasicActivity extends ListActivity
     };
     
     /**
-     * Append Button Pressed
-     */
-    public void loadPressed(View v) {
-        addMessageToStatus("Loading OrbBasic Program...");
-        mOrbBasicProgram.loadProgram();
-    }
-
-    /**
-     * Abort Button Pressed
-     */
-    public void abortPressed(View v) {
-        addMessageToStatus("Aborting OrbBasic Program");
-        OrbBasicAbortProgramCommand.sendCommand(mRobot);
-    }
-    
-    /**
      * Magic Button Pressed
      */
     public void runCodePressed(View v) {
     	Log.d("Orb", "runCodePressed");
         addMessageToStatus("Running Code");
-        
-        try {
-        	Log.d("orb", "try getting contents");
-        	String getCodeUrl = "http://orb-code.meteor.com/show/" + url;
-        	byte[] program = GetURLContent.getUrlContent(getCodeUrl).getBytes();
-        	Log.d("orb", "program is: " + program);
 
-            // Create the OrbBasic Program object
-            mOrbBasicProgram = new OrbBasicProgram(program);
+        Log.d("orb", "try getting contents");
+        String getCodeUrl = "http://orb-code.meteor.com/show/" + url;
+        byte[] program = getUrlContent(getCodeUrl).getBytes();
+        Log.d("orb", "program is: " + program);
+
+        // Create the OrbBasic Program object
+        mOrbBasicProgram = new OrbBasicProgram(program);
+
+        if(program.length != 0){
             mOrbBasicProgram.setRobot(mRobot);
-            
 
             // Set the listener for the OrbBasic Program Events
             mOrbBasicProgram.setOrbBasicProgramEventListener(new OrbBasicProgram.OrbBasicProgramEventListener() {
@@ -241,56 +158,35 @@ public class OrbBasicActivity extends ListActivity
                 public void onEraseCompleted(boolean success) {
                     String successStr = (success) ? "Success!!":"Failure";
                     addMessageToStatus("Done Erasing: " + successStr);
+
+                    mOrbBasicProgram.loadProgram();
                 }
 
                 @Override
                 public void onLoadProgramComplete(boolean success) {
-                	Log.d("orb", "callback onLoadProgramk");
-                	if (success) {
-                		addMessageToStatus("Done Loading: Success; now executing");
-                		mOrbBasicProgram.executeProgram();
-                	} else {
-                		addMessageToStatus("Done Loading: Failure");
-                	}
+                    Log.d("orb", "callback onLoadProgramk");
+                    if (success) {
+                        addMessageToStatus("Done Loading: Success; now executing");
+                        mOrbBasicProgram.executeProgram();
+                    } else {
+                        addMessageToStatus("Done Loading: Failure");
+                    }
                 }
             });
-            
-            Log.d("orb", "loading program now");
-            mOrbBasicProgram.loadProgram();
-            Log.d("orb", "after call to loading program");
-        } catch (Exception e) {
-            addMessageToStatus("Error Decoding Resource");
+            mOrbBasicProgram.eraseStorage();
+        }else {
+            addMessageToStatus("Program is empty.");
         }
-        
+
     }
 
-
-    /**
-     * Execute Button Pressed
-     */
-    public void executePressed(View v) {
-        addMessageToStatus("Executing OrbBasic Program");
-        mOrbBasicProgram.executeProgram();
-    }
-
-    /**
-     * Erase Button Pressed
-     */
-    public void erasePressed(View v) {
-        addMessageToStatus("Erasing OrbBasic Program...");
-        if (mOrbBasicProgram != null) {
-        	mOrbBasicProgram.eraseStorage();
-        }
-        
-    }
-    
     public String getEditOrbUrl() {
     	SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = settings.edit();
         String currentUrl = settings.getString("editOrbUrl", null);
         if (currentUrl == null) {
         	// get a url from my computer
-        	currentUrl = GetURLContent.getUrlContent("http://orb-code.meteor.com/add");
+        	currentUrl = getUrlContent("http://orb-code.meteor.com/add");
         	Log.d(TAG, "saving the editor to be " + currentUrl);
         	editor.putString("editOrbUrl", currentUrl);
         	editor.commit();
@@ -317,61 +213,29 @@ public class OrbBasicActivity extends ListActivity
             mTxtStatus.scrollTo(0,0);
     }
 
-    /**
-     * A BaseAdapter that keeps track of the OrbBasic Programs in the raw folder
-     */
-    private class OrbBasicProgramListAdapter extends BaseAdapter {
+    private String getUrlContent(String urlString){
+        StringBuilder builder = new StringBuilder();
+        try {
+            // get URL content
+            Log.d("url", "query" + urlString);
+            URL url = new URL(urlString);
+            Log.d("url", "hitting" + url);
+            URLConnection conn = url.openConnection();
 
-        private List<Integer> mOrbBasicPrograms = new ArrayList<Integer>();
-        private List<String> mOrbBasicProgramNames = new ArrayList<String>();
+            // open the stream and put it into BufferedReader
+            BufferedReader br = new BufferedReader(
+                new InputStreamReader(conn.getInputStream()));
 
-        public void setProgramResources(List<Integer> programs){
-            mOrbBasicPrograms = programs;
-            notifyDataSetChanged();
-        }
-
-        public void setOrbBasicProgramNames(List<String> programNames){
-            mOrbBasicProgramNames = programNames;
-            notifyDataSetChanged();
-        }
-
-        @Override
-        public int getCount() {
-            return mOrbBasicPrograms.size();
-        }
-
-        @Override
-        public String getItem(int i) {
-            return mOrbBasicProgramNames.get(i);
-        }
-
-        @Override
-        public long getItemId(int i) {
-            return i;
-        }
-
-        public List<Integer> getOrbBasicPrograms() {
-            return mOrbBasicPrograms;
-        }
-
-        public List<String> getOrbBasicProgramNames() {
-            return mOrbBasicProgramNames;
-        }
-
-        @Override
-        public View getView(int i, View view, ViewGroup viewGroup) {
-
-            if(view == null){
-                view = new OrbBasicProgramListItemView(viewGroup.getContext());
+            String inputLine;
+            while ((inputLine = br.readLine()) != null) {
+                builder.append(inputLine + "\n");
             }
-
-            String program = getItem(i);
-            OrbBasicProgramListItemView list_item = (OrbBasicProgramListItemView)view;
-
-            // Display OrbBasic Player Name
-            list_item.setText(program);
-
-            return view;
+            br.close();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return builder.toString();
     }
 }
