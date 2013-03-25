@@ -1,6 +1,18 @@
+
 *.class
 
 # Package Files #
 *.jar
 *.war
 *.ear
+
+# IntelliJ files #
+*.iml
+.idea/
+out/
+.idea/
+
+# MacOSX crap #
+.DS_Store
+
+/.idea/ant.xml
