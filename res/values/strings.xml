@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OrbBasicSample</string>
+    <string name="url">URL:</string>
+    <string name="status">Status:</string>
 </resources>
