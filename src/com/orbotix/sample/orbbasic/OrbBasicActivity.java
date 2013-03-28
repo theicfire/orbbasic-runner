@@ -1,24 +1,39 @@
 package com.orbotix.sample.orbbasic;
 
-import android.app.Activity;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.os.Bundle;
-import android.text.method.ScrollingMovementMethod;
-import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
-import android.widget.Toast;
-import orbotix.robot.base.*;
-import orbotix.view.connection.SpheroConnectionView;
-import orbotix.view.connection.SpheroConnectionView.OnRobotConnectionEventListener;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashMap;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import orbotix.robot.base.DeviceAsyncData;
+import orbotix.robot.base.DeviceMessenger;
+import orbotix.robot.base.OrbBasicErrorASCIIAsyncData;
+import orbotix.robot.base.OrbBasicErrorBinaryAsyncData;
+import orbotix.robot.base.OrbBasicPrintMessageAsyncData;
+import orbotix.robot.base.OrbBasicProgram;
+import orbotix.robot.base.Robot;
+import orbotix.robot.base.RobotProvider;
+import orbotix.view.connection.SpheroConnectionView;
+import orbotix.view.connection.SpheroConnectionView.OnRobotConnectionEventListener;
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.EditText;
+import android.widget.Toast;
 
 public class OrbBasicActivity extends Activity {
 	/**
@@ -41,6 +56,8 @@ public class OrbBasicActivity extends Activity {
 	// Other
 	private String url;
 	private final String TAG = "orb";
+	
+	private static final int PICK_PROGRAM_REQUEST = 0;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -50,7 +67,6 @@ public class OrbBasicActivity extends Activity {
 		setContentView(R.layout.main);
 
         setupStatusText();
-        showUrl();
         startSpheroConnectionView();
 	}
 
@@ -82,13 +98,7 @@ public class OrbBasicActivity extends Activity {
         mTxtStatus = (TextView)findViewById(R.id.txt_status);
         // Auto scrolls to new data
         mTxtStatus.setMovementMethod(new ScrollingMovementMethod());
-    }
-
-    private void showUrl() {
-        url = getEditOrbUrl();
-        final String urlString = "http://orb-code.meteor.com/edit/" + url;
-        ((TextView)findViewById(R.id.url_text)).setText(urlString);
-        mTxtStatus.append("Edit Code At: "+urlString+"\n");
+        mTxtStatus.append("Code Output Appears Here\n"); // TODO why can I not call the method for this? (set status text or whatever)
     }
 
     /**
@@ -98,19 +108,32 @@ public class OrbBasicActivity extends Activity {
     protected void onResume() {
     	super.onResume();
         // Refresh list of Spheros
+
+    }
+    
+    @Override
+    protected void onStart() {
+    	super.onStart();
         mSpheroConnectionView.showSpheros();
     }
     
+    @Override
+    protected void onStop() {
+    	super.onStop();
+
+        // register the async data listener
+        DeviceMessenger.getInstance().removeAsyncDataListener(mRobot, mDataListener);
+    	// Disconnect Robot properly
+    	RobotProvider.getDefaultProvider().disconnectControlledRobots();
+    }
+    
+
     /**
      * Called when the user presses the back or home button
      */
     @Override
     protected void onPause() {
     	super.onPause();
-        // register the async data listener
-        DeviceMessenger.getInstance().removeAsyncDataListener(mRobot, mDataListener);
-    	// Disconnect Robot properly
-    	RobotProvider.getDefaultProvider().disconnectControlledRobots();
     }
 
     /**
@@ -142,8 +165,29 @@ public class OrbBasicActivity extends Activity {
         addMessageToStatus("Running Code");
 
         Log.d("orb", "try getting contents");
-        String getCodeUrl = "http://orb-code.meteor.com/show/" + url;
-        byte[] program = getUrlContent(getCodeUrl).getBytes();
+        String getCodeUrl = "http://orb-wed.meteor.com/show/" + url;
+        new GetCode().execute(getCodeUrl);
+    }
+    
+    
+    
+    private class GetCode extends AsyncTask<String, Integer, byte[]> {
+	     protected byte[] doInBackground(String... urls) {
+	    	 byte[] program = HttpGetter.getUrlContent(urls[0]).getBytes();
+	    	 return program;
+	     }
+
+	     protected void onProgressUpdate(Integer... progress) {
+	     }
+
+	     protected void onPostExecute(byte[] program) {
+	         Log.d("list", "done!!");
+	         runCodeCallback(program);
+	     }
+	 }
+    
+    
+    public void runCodeCallback(byte[] program) {
         Log.d("orb", "program is: " + program);
 
         // Create the OrbBasic Program object
@@ -179,6 +223,27 @@ public class OrbBasicActivity extends Activity {
         }
 
     }
+    
+    public void chooseProgramPressed(View v) {
+    	Log.d(TAG, "chooseProgramPressed");
+        Intent intent = new Intent(this, ListViewLoader.class);
+        EditText username_input = (EditText)findViewById(R.id.username_input);
+        Log.d(TAG, "setting username" + username_input.getText());
+        intent.putExtra("username", username_input.getText().toString());
+        startActivityForResult(intent, PICK_PROGRAM_REQUEST);
+    }
+    
+    protected void onActivityResult(int requestCode, int resultCode,
+            Intent data) {
+        if (requestCode == PICK_PROGRAM_REQUEST) {
+            if (resultCode == RESULT_OK) {
+                // A contact was picked.  Here we will just display it
+                // to the user.
+            	url = data.getStringExtra("program_id");
+            	Log.d(TAG, "set id to" + url);
+            }
+        }
+    }
 
     public String getEditOrbUrl() {
     	SharedPreferences settings = getPreferences(Context.MODE_PRIVATE);
@@ -186,7 +251,7 @@ public class OrbBasicActivity extends Activity {
         String currentUrl = settings.getString("editOrbUrl", null);
         if (currentUrl == null) {
         	// get a url from my computer
-        	currentUrl = getUrlContent("http://orb-code.meteor.com/add");
+        	currentUrl = HttpGetter.getUrlContent("http://orb-wed.meteor.com/add");
         	Log.d(TAG, "saving the editor to be " + currentUrl);
         	editor.putString("editOrbUrl", currentUrl);
         	editor.commit();
@@ -213,29 +278,5 @@ public class OrbBasicActivity extends Activity {
             mTxtStatus.scrollTo(0,0);
     }
 
-    private String getUrlContent(String urlString){
-        StringBuilder builder = new StringBuilder();
-        try {
-            // get URL content
-            Log.d("url", "query" + urlString);
-            URL url = new URL(urlString);
-            Log.d("url", "hitting" + url);
-            URLConnection conn = url.openConnection();
 
-            // open the stream and put it into BufferedReader
-            BufferedReader br = new BufferedReader(
-                new InputStreamReader(conn.getInputStream()));
-
-            String inputLine;
-            while ((inputLine = br.readLine()) != null) {
-                builder.append(inputLine + "\n");
-            }
-            br.close();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return builder.toString();
-    }
 }
