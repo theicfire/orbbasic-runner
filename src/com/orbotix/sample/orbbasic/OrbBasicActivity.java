@@ -136,7 +136,7 @@ public class OrbBasicActivity extends Activity {
 
             if(data instanceof OrbBasicPrintMessageAsyncData){
                 OrbBasicPrintMessageAsyncData printMessage = (OrbBasicPrintMessageAsyncData)data;
-                addMessageToStatus(printMessage.getMessage());
+                addMessageToStatusRaw(printMessage.getMessage());
             }
             else if(data instanceof OrbBasicErrorASCIIAsyncData ){
                 OrbBasicErrorASCIIAsyncData errorMessageASCII = (OrbBasicErrorASCIIAsyncData)data;
@@ -153,7 +153,7 @@ public class OrbBasicActivity extends Activity {
      */
     public void runCodePressed(View v) {
     	Log.d("Orb", "runCodePressed");
-        addMessageToStatus("Running Code");
+        addMessageToStatus("Loading Code...");
 
         Log.d("orb", "try getting contents");
         String getCodeUrl = "http://orb-wed.meteor.com/show/" + url;
@@ -192,8 +192,7 @@ public class OrbBasicActivity extends Activity {
                 @Override
                 public void onEraseCompleted(boolean success) {
                     String successStr = (success) ? "Success!!":"Failure";
-                    addMessageToStatus("Done Erasing: " + successStr);
-
+                    Log.d(TAG, "Done Erasing: " + successStr);
                     mOrbBasicProgram.loadProgram();
                 }
 
@@ -201,10 +200,11 @@ public class OrbBasicActivity extends Activity {
                 public void onLoadProgramComplete(boolean success) {
                     Log.d("orb", "callback onLoadProgramk");
                     if (success) {
-                        addMessageToStatus("Done Loading: Success; now executing");
+                        addMessageToStatus("Program Loaded Successfully. Executing:");
+                        addMessageToStatus("=========");
                         mOrbBasicProgram.executeProgram();
                     } else {
-                        addMessageToStatus("Done Loading: Failure");
+                        addMessageToStatus("Error in loading the program.");
                     }
                 }
             });
@@ -231,6 +231,8 @@ public class OrbBasicActivity extends Activity {
                 // A contact was picked.  Here we will just display it
                 // to the user.
             	url = data.getStringExtra("program_id");
+            	String name = data.getStringExtra("program_name");
+            	addMessageToStatus("Picked " + name);
             	Log.d(TAG, "set id to" + url);
             	Button runProgramButton = (Button)findViewById(R.id.button_run_code);
                 runProgramButton.setEnabled(true);
@@ -257,8 +259,12 @@ public class OrbBasicActivity extends Activity {
      * @param msg to append
      */
     private void addMessageToStatus(String msg){
+    	addMessageToStatusRaw(msg + "\n");
+    }
+    
+    private void addMessageToStatusRaw(String msg) {
         // append the new string
-        mTxtStatus.append(msg+"\n");
+        mTxtStatus.append(msg);
         // find the amount we need to scroll.  This works by
         // asking the TextView's internal layout for the position
         // of the final line and then subtracting the TextView's height
@@ -269,6 +275,7 @@ public class OrbBasicActivity extends Activity {
             mTxtStatus.scrollTo(0, scrollAmount);
         else
             mTxtStatus.scrollTo(0,0);
+
     }
 
 

@@ -110,6 +110,7 @@ public class ListViewLoader extends ListActivity {
 		Log.d("list", "value is" + programMap.get(name));
 		 Intent returnIntent = new Intent();
 		 returnIntent.putExtra("program_id",programMap.get(name));
+		 returnIntent.putExtra("program_name",name);
 		 setResult(RESULT_OK,returnIntent);     
 		 finish();
 		
