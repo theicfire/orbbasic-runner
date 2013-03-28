@@ -45,9 +45,9 @@ public class OrbBasicActivity extends Activity {
 	// Other
 	private String url;
 	private final String TAG = "orb";
-	
+	private SharedPreferences settings;
 	private static final int PICK_PROGRAM_REQUEST = 0;
-
+	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState)
@@ -56,6 +56,12 @@ public class OrbBasicActivity extends Activity {
 		setContentView(R.layout.main);
 
         setupStatusText();
+        
+        settings = getSharedPreferences("list_name", 0);
+        String listName = settings.getString("list_name", null);
+        EditText username_input = (EditText)findViewById(R.id.username_input);
+        username_input.setText(listName);
+        
         Button runProgramButton = (Button)findViewById(R.id.button_run_code);
         runProgramButton.setEnabled(false);
         startSpheroConnectionView();
@@ -116,6 +122,15 @@ public class OrbBasicActivity extends Activity {
         DeviceMessenger.getInstance().removeAsyncDataListener(mRobot, mDataListener);
     	// Disconnect Robot properly
     	RobotProvider.getDefaultProvider().disconnectControlledRobots();
+    	
+    	savePreferences();
+    }
+    
+    private void savePreferences() {
+        SharedPreferences.Editor editor = settings.edit();
+        EditText username_input = (EditText)findViewById(R.id.username_input);
+        editor.putString("list_name", username_input.getText().toString());
+        editor.commit();
     }
     
 
