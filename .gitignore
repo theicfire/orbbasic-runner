@@ -16,3 +16,8 @@ out/
 .DS_Store
 
 /.idea/ant.xml
+
+# android
+*.log
+*.apk
+*.classpath

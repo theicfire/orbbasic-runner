@@ -1,17 +1,5 @@
 package com.orbotix.sample.orbbasic;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.HashMap;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import orbotix.robot.base.DeviceAsyncData;
 import orbotix.robot.base.DeviceMessenger;
 import orbotix.robot.base.OrbBasicErrorASCIIAsyncData;
@@ -31,8 +19,9 @@ import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
-import android.widget.TextView;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class OrbBasicActivity extends Activity {
@@ -67,6 +56,8 @@ public class OrbBasicActivity extends Activity {
 		setContentView(R.layout.main);
 
         setupStatusText();
+        Button runProgramButton = (Button)findViewById(R.id.button_run_code);
+        runProgramButton.setEnabled(false);
         startSpheroConnectionView();
 	}
 
@@ -241,6 +232,8 @@ public class OrbBasicActivity extends Activity {
                 // to the user.
             	url = data.getStringExtra("program_id");
             	Log.d(TAG, "set id to" + url);
+            	Button runProgramButton = (Button)findViewById(R.id.button_run_code);
+                runProgramButton.setEnabled(true);
             }
         }
     }

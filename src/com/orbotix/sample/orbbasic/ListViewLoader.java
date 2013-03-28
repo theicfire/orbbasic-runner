@@ -7,7 +7,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.ListActivity;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -51,8 +55,11 @@ public class ListViewLoader extends ListActivity {
 
 	     protected void onPostExecute(HashMap<String, String> result) {
 	         Log.d("list", "done!!");
-	         
-	         setPrograms(result);
+	         if (result.size() == 0) {
+	        	 showNoPrograms(); 
+	         } else {
+	        	 setPrograms(result);
+	         }
 	     }
 	 }
 
@@ -85,6 +92,15 @@ public class ListViewLoader extends ListActivity {
 		ArrayAdapter<String> mAdapter = new ArrayAdapter<String>(this, 
 		        android.R.layout.simple_list_item_1, names);
 		setListAdapter(mAdapter);
+	}
+	
+	public void showNoPrograms() {
+		new AlertDialog.Builder(this).setTitle("No Programs").setMessage("Check your internet connection and List Name")
+	 	.setNeutralButton("Close", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+            	ListViewLoader.this.finish();
+            }
+        }).show();
 	}
 
 	@Override
